@@ -1,8 +1,8 @@
-# Dictado Local con Whisper para Pop!_OS
+# Dictado Local con Whisper para Pop! OS
 
-Dictado 100% local para `Pop!_OS`, `COSMIC` y `Wayland`.
+Dictado 100% local para `Pop! OS`, `COSMIC` y `Wayland`.
 
-Este proyecto nacio para escribir rapido en chat usando una combinacion simple de teclado, transcripcion local con Whisper y correccion ortografica posterior. El flujo actual usa `faster-whisper` con el modelo `medium` y una capa de correccion con `LanguageTool`.
+Este proyecto nacio para escribir rapido en chat usando una combinacion simple de teclado, transcripcion local con Whisper y correccion ortografica posterior. El flujo actual usa `faster-whisper` con el modelo `small` por defecto y una capa de correccion con `LanguageTool`.
 
 ## Todo es local
 
@@ -50,22 +50,23 @@ Si tu equipo es mas modesto, el proyecto sigue siendo usable, pero el tiempo de 
 
 ## Recomendacion de modelo
 
-- Configuracion actual del proyecto: `medium`
-- Recomendacion general para la mayoria de equipos: empezar con `small`
+- Configuracion por defecto del proyecto: `small`
+- Recomendacion general para la mayoria de equipos: usar `small`
 - Usa `medium` si priorizas calidad sobre velocidad, como en un flujo de chat o dictado pausado
+- Si notas que la transcripcion tarda demasiado, quedate en `small`
 
 Regla practica:
 
-- `small` -> mejor balance para la mayoria
+- `small` -> mejor balance para la mayoria y opcion por defecto
 - `medium` -> mejor texto final, mas latencia
 
 Si quieres cambiarlo, ajusta `MODEL_NAME` en `voice_toggle.py`.
 
-## Pensado para Pop!_OS
+## Pensado para Pop! OS
 
 Este proyecto esta orientado a:
 
-- `Pop!_OS`
+- `Pop! OS`
 - `COSMIC`
 - `Wayland`
 
@@ -119,7 +120,7 @@ El proyecto usa un shortcut nativo de COSMIC. Si necesitas configurarlo manualme
 
 `~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`
 
-Tambien puedes revisar la documentacion oficial de System76 sobre atajos de teclado y configuracion general de Pop!_OS/COSMIC:
+Tambien puedes revisar la documentacion oficial de System76 sobre atajos de teclado y configuracion general de Pop! OS/COSMIC:
 
 - `https://support.system76.com/articles/pop-keyboard-shortcuts/`
 - `https://support.system76.com/articles/pop-basics/`
