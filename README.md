@@ -1,8 +1,8 @@
-# Dictado Local con Whisper para Pop! OS
+# Dictado Local para Pop! OS con Whisper
 
 Dictado 100% local para `Pop! OS`, `COSMIC` y `Wayland`.
 
-Este proyecto nacio para escribir rapido en chat usando una combinacion simple de teclado, transcripcion local con Whisper y correccion ortografica posterior. El flujo actual usa `faster-whisper` con el modelo `small` por defecto y una capa de correccion con `LanguageTool`.
+Este proyecto nacio para escribir rapido en chat usando una combinacion simple de teclado, transcripcion local con Whisper y correccion ortografica posterior. El flujo actual usa `faster-whisper` con el modelo `small` por defecto y una capa opcional de correccion con `LanguageTool`.
 
 ## Todo es local
 
@@ -20,7 +20,7 @@ Este proyecto nacio para escribir rapido en chat usando una combinacion simple d
 ## Stack
 
 - `faster-whisper`
-- `Whisper medium`
+- `Whisper small`
 - `LanguageTool`
 - `arecord`
 - `wl-clipboard`
@@ -31,7 +31,7 @@ Este proyecto nacio para escribir rapido en chat usando una combinacion simple d
 
 Minimos razonables para usar este proyecto:
 
-- `Pop!_OS` con `COSMIC` y `Wayland`
+- `Pop! OS` con `COSMIC` y `Wayland`
 - Python `3.10+`
 - Java Runtime para `LanguageTool`
 - Microfono funcional configurado en el sistema
@@ -52,7 +52,7 @@ Si tu equipo es mas modesto, el proyecto sigue siendo usable, pero el tiempo de 
 
 - Configuracion por defecto del proyecto: `small`
 - Recomendacion general para la mayoria de equipos: usar `small`
-- Usa `medium` si priorizas calidad sobre velocidad, como en un flujo de chat o dictado pausado
+- Usa `medium` solo si priorizas calidad sobre velocidad y aceptas mas espera
 - Si notas que la transcripcion tarda demasiado, quedate en `small`
 
 Regla practica:
@@ -60,7 +60,11 @@ Regla practica:
 - `small` -> mejor balance para la mayoria y opcion por defecto
 - `medium` -> mejor texto final, mas latencia
 
-Si quieres cambiarlo, ajusta `MODEL_NAME` en `voice_toggle.py`.
+Si quieres cambiarlo sin editar el codigo:
+
+```bash
+VOICE_TOGGLE_MODEL=medium ./run-voice-toggle.sh
+```
 
 ## Pensado para Pop! OS
 
@@ -76,15 +80,43 @@ Usa herramientas nativas de Wayland para evitar hacks de X11.
 
 1. Se graba audio con `arecord`.
 2. Se transcribe localmente con `faster-whisper`.
-3. Whisper detecta el idioma principal del audio.
-4. Se corrige el texto con `LanguageTool` usando el idioma detectado.
+3. Whisper detecta el idioma principal del audio, salvo que lo fuerces manualmente.
+4. Se corrige el texto con `LanguageTool` usando el idioma detectado, si esa capa esta activada.
 5. El resultado se copia al portapapeles con `wl-copy`.
 6. Se intenta escribir el texto con `wtype` en la app enfocada.
 
+## Modos de idioma recomendados
+
+- Si hablas solo en espanol, fuerza espanol.
+- Si hablas solo en ingles, fuerza ingles.
+- Si mezclas espanol e ingles en la misma frase, deja autodeteccion, pero espera algunos errores o correcciones cruzadas.
+
+Ejemplos:
+
+```bash
+VOICE_TOGGLE_LANGUAGE=es ./run-voice-toggle.sh
+VOICE_TOGGLE_LANGUAGE=en ./run-voice-toggle.sh
+VOICE_TOGGLE_LANGUAGE=auto ./run-voice-toggle.sh
+```
+
+## Sin LanguageTool
+
+Si quieres usar solo Whisper y evitar la correccion posterior:
+
+```bash
+VOICE_TOGGLE_ENABLE_LANGUAGETOOL=0 ./run-voice-toggle.sh
+```
+
+Esto puede ser util si:
+
+- mezclas idiomas con frecuencia
+- prefieres la transcripcion cruda
+- no quieres que una capa extra cambie palabras por contexto
+
 ## Limitaciones actuales
 
-- La mezcla de espanol e ingles en una misma frase puede funcionar, pero el sistema sigue eligiendo un idioma principal por mensaje.
-- El modelo `medium` mejora bastante la calidad, pero introduce mas latencia que `small`.
+- La mezcla de espanol e ingles en una misma frase puede funcionar, pero sigue habiendo un idioma dominante por mensaje.
+- `small` es mas rapido; `medium` puede dar mejor resultado, pero tarda mas.
 - `LanguageTool` puede arreglar ortografia y gramatica, pero a veces tambien hace correcciones raras.
 
 ## Instalacion rapida
@@ -114,6 +146,12 @@ Ejecuta el script principal con:
 
 La primera ejecucion real descargara caches necesarias de Whisper y LanguageTool. Despues, el flujo normal sigue corriendo de forma local.
 
+Por defecto, al ejecutar `run-voice-toggle.sh`, el proyecto usa:
+
+- modelo `small`
+- idioma `auto`
+- `LanguageTool` activado
+
 ## Atajo en COSMIC
 
 El proyecto usa un shortcut nativo de COSMIC. Si necesitas configurarlo manualmente, crea o ajusta:
@@ -124,6 +162,11 @@ Tambien puedes revisar la documentacion oficial de System76 sobre atajos de tecl
 
 - `https://support.system76.com/articles/pop-keyboard-shortcuts/`
 - `https://support.system76.com/articles/pop-basics/`
+
+Y el codigo de COSMIC relacionado con shortcuts:
+
+- `https://github.com/pop-os/cosmic-settings`
+- `https://github.com/pop-os/cosmic-comp`
 
 Con una entrada como esta:
 

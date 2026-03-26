@@ -16,9 +16,11 @@ LOCK_FILE = BASE_DIR / "toggle.lock"
 PYTHON_BIN = BASE_DIR / ".venv" / "bin" / "python"
 START_SOUND = "/usr/share/sounds/Pop/stereo/notification/complete.oga"
 DONE_SOUND = "/usr/share/sounds/Pop/stereo/action/bell.oga"
-MODEL_NAME = "small"
+MODEL_NAME = os.environ.get("VOICE_TOGGLE_MODEL", "small")
 PERF_LOG_FILE = BASE_DIR / "performance.log"
 DEFAULT_LANGUAGE_TOOL_LANG = "es"
+FORCED_LANGUAGE = os.environ.get("VOICE_TOGGLE_LANGUAGE", "auto")
+ENABLE_LANGUAGE_TOOL = os.environ.get("VOICE_TOGGLE_ENABLE_LANGUAGETOOL", "1") != "0"
 LANGUAGE_TOOL_LANG_MAP = {
     "en": "en-US",
     "es": "es",
@@ -125,12 +127,13 @@ def stop_recording(pid: int) -> bool:
 
 
 def transcribe() -> tuple[str, str, float]:
+    language_arg = "None" if FORCED_LANGUAGE == "auto" else repr(FORCED_LANGUAGE)
     code = r'''
 import json
 from faster_whisper import WhisperModel
 
 model = WhisperModel("'''+ MODEL_NAME + r'''", device="cpu", compute_type="int8")
-segments, info = model.transcribe(r"'''+ str(RECORDING_FILE) + r'''", beam_size=3, vad_filter=True)
+segments, info = model.transcribe(r"'''+ str(RECORDING_FILE) + r'''", language='''+ language_arg + r''', beam_size=3, vad_filter=True)
 text = " ".join(segment.text.strip() for segment in segments).strip()
 print(json.dumps({
     "text": text,
@@ -243,14 +246,18 @@ def stop_mode(state: dict) -> int:
         return 1
 
     correction_started = time.monotonic()
-    try:
-        corrected_text = correct_text(text, detected_language)
-    except Exception as exc:
-        corrected_text = text
-        correction_seconds = round(time.monotonic() - correction_started, 3)
-        notify("Voice Toggle", f"No se pudo corregir el texto. Uso transcripcion original: {exc}")
+    if ENABLE_LANGUAGE_TOOL:
+        try:
+            corrected_text = correct_text(text, detected_language)
+        except Exception as exc:
+            corrected_text = text
+            correction_seconds = round(time.monotonic() - correction_started, 3)
+            notify("Voice Toggle", f"No se pudo corregir el texto. Uso transcripcion original: {exc}")
+        else:
+            correction_seconds = round(time.monotonic() - correction_started, 3)
     else:
-        correction_seconds = round(time.monotonic() - correction_started, 3)
+        corrected_text = text
+        correction_seconds = 0.0
 
     final_text = capitalize_first_letter(corrected_text or text)
 
@@ -274,6 +281,8 @@ def stop_mode(state: dict) -> int:
         "corrected": final_text != text,
         "detected_language": detected_language,
         "language_probability": round(language_probability, 4),
+        "forced_language": FORCED_LANGUAGE,
+        "languagetool_enabled": ENABLE_LANGUAGE_TOOL,
         "languagetool_language": normalize_language_for_tool(detected_language),
         "load1_before": round(load_before, 2),
         "load1_after": load_after,
