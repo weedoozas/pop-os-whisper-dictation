@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import time
+import tomllib
 from pathlib import Path
 
 
@@ -13,18 +14,35 @@ BASE_DIR = Path.home() / "voice-toggle"
 STATE_FILE = BASE_DIR / "state.json"
 RECORDING_FILE = BASE_DIR / "recording.wav"
 LOCK_FILE = BASE_DIR / "toggle.lock"
+CONFIG_FILE = BASE_DIR / "config.toml"
 PYTHON_BIN = BASE_DIR / ".venv" / "bin" / "python"
 START_SOUND = "/usr/share/sounds/Pop/stereo/notification/complete.oga"
 DONE_SOUND = "/usr/share/sounds/Pop/stereo/action/bell.oga"
-MODEL_NAME = os.environ.get("VOICE_TOGGLE_MODEL", "small")
 PERF_LOG_FILE = BASE_DIR / "performance.log"
 DEFAULT_LANGUAGE_TOOL_LANG = "es"
-FORCED_LANGUAGE = os.environ.get("VOICE_TOGGLE_LANGUAGE", "auto")
-ENABLE_LANGUAGE_TOOL = os.environ.get("VOICE_TOGGLE_ENABLE_LANGUAGETOOL", "1") != "0"
 LANGUAGE_TOOL_LANG_MAP = {
     "en": "en-US",
     "es": "es",
 }
+
+
+def load_config() -> dict:
+    if not CONFIG_FILE.exists():
+        return {}
+    try:
+        with CONFIG_FILE.open("rb") as f:
+            return tomllib.load(f)
+    except Exception:
+        return {}
+
+
+CONFIG = load_config()
+MODEL_NAME = os.environ.get("VOICE_TOGGLE_MODEL", str(CONFIG.get("model", "small")))
+FORCED_LANGUAGE = os.environ.get("VOICE_TOGGLE_LANGUAGE", str(CONFIG.get("language", "auto")))
+ENABLE_LANGUAGE_TOOL = os.environ.get(
+    "VOICE_TOGGLE_ENABLE_LANGUAGETOOL",
+    "1" if bool(CONFIG.get("enable_languagetool", True)) else "0",
+) != "0"
 
 
 def ensure_dirs() -> None:

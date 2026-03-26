@@ -1,0 +1,16 @@
+# Pop! OS Whisper dictation config
+# Edita este archivo para cambiar el comportamiento por defecto.
+
+# Modelos recomendados:
+# - "small": mejor balance general
+# - "medium": mejor calidad, mas lento
+model = "small"
+
+# Idioma:
+# - "auto": autodeteccion
+# - "es": espanol
+# - "en": ingles
+language = "auto"
+
+# Correccion posterior con LanguageTool.
+enable_languagetool = true

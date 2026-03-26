@@ -152,6 +152,34 @@ Por defecto, al ejecutar `run-voice-toggle.sh`, el proyecto usa:
 - idioma `auto`
 - `LanguageTool` activado
 
+## Archivo de configuracion recomendado
+
+La forma mas amigable de personalizar el proyecto es editar:
+
+`config.toml`
+
+Ese archivo viene pensado para usuarios nuevos y evita tener que recordar variables de entorno.
+
+Ejemplo:
+
+```toml
+model = "small"
+language = "auto"
+enable_languagetool = true
+```
+
+Valores utiles:
+
+- `model = "small"` o `"medium"`
+- `language = "auto"`, `"es"` o `"en"`
+- `enable_languagetool = true` o `false`
+
+Prioridad de configuracion:
+
+1. variables de entorno
+2. `config.toml`
+3. valores por defecto del script
+
 ## Atajo en COSMIC
 
 El proyecto usa un shortcut nativo de COSMIC. Si necesitas configurarlo manualmente, crea o ajusta:
