@@ -1,8 +1,15 @@
-# Pop!_OS Whisper Dictation
+# Dictado Local con Whisper para Pop!_OS
 
-Dictado local para `Pop!_OS`, `COSMIC` y `Wayland`.
+Dictado 100% local para `Pop!_OS`, `COSMIC` y `Wayland`.
 
 Este proyecto nacio para escribir rapido en chat usando una combinacion simple de teclado, transcripcion local con Whisper y correccion ortografica posterior. El flujo actual usa `faster-whisper` con el modelo `medium` y una capa de correccion con `LanguageTool`.
+
+## Todo es local
+
+- La grabacion se hace en tu propia maquina.
+- La transcripcion con Whisper corre en local.
+- La correccion con `LanguageTool` corre en local.
+- No se manda audio ni texto a servicios externos o a la nube.
 
 ## Que hace
 
@@ -19,6 +26,40 @@ Este proyecto nacio para escribir rapido en chat usando una combinacion simple d
 - `wl-clipboard`
 - `wtype`
 - `notify-send`
+
+## Requisitos del sistema
+
+Minimos razonables para usar este proyecto:
+
+- `Pop!_OS` con `COSMIC` y `Wayland`
+- Python `3.10+`
+- Java Runtime para `LanguageTool`
+- Microfono funcional configurado en el sistema
+- CPU moderna de 64 bits
+- Al menos `8 GB` de RAM recomendados
+- Espacio libre para caches y modelos locales
+
+## GPU y VRAM
+
+- No necesitas una GPU NVIDIA para usar este proyecto.
+- No necesitas VRAM dedicada para el flujo actual.
+- La configuracion actual corre en CPU usando `faster-whisper` con `compute_type=int8`.
+- Una GPU puede ayudar en otras variantes, pero no es un requisito de este repositorio.
+
+Si tu equipo es mas modesto, el proyecto sigue siendo usable, pero el tiempo de transcripcion puede aumentar.
+
+## Recomendacion de modelo
+
+- Configuracion actual del proyecto: `medium`
+- Recomendacion general para la mayoria de equipos: empezar con `small`
+- Usa `medium` si priorizas calidad sobre velocidad, como en un flujo de chat o dictado pausado
+
+Regla practica:
+
+- `small` -> mejor balance para la mayoria
+- `medium` -> mejor texto final, mas latencia
+
+Si quieres cambiarlo, ajusta `MODEL_NAME` en `voice_toggle.py`.
 
 ## Pensado para Pop!_OS
 
@@ -70,13 +111,18 @@ Ejecuta el script principal con:
 ./run-voice-toggle.sh
 ```
 
-La primera ejecucion real descargara caches necesarias de Whisper y LanguageTool.
+La primera ejecucion real descargara caches necesarias de Whisper y LanguageTool. Despues, el flujo normal sigue corriendo de forma local.
 
 ## Atajo en COSMIC
 
 El proyecto usa un shortcut nativo de COSMIC. Si necesitas configurarlo manualmente, crea o ajusta:
 
 `~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`
+
+Tambien puedes revisar la documentacion oficial de System76 sobre atajos de teclado y configuracion general de Pop!_OS/COSMIC:
+
+- `https://support.system76.com/articles/pop-keyboard-shortcuts/`
+- `https://support.system76.com/articles/pop-basics/`
 
 Con una entrada como esta:
 
@@ -107,3 +153,7 @@ Esto ayuda a decidir si `medium` vale la pena segun tu maquina.
 ## Licencia
 
 MIT
+
+## Autor
+
+Creado y publicado por `weedoozas`.

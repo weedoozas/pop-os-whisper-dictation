@@ -50,6 +50,13 @@ def preview_text(text: str, limit: int = 120) -> str:
     return clean[: limit - 3] + "..."
 
 
+def capitalize_first_letter(text: str) -> str:
+    for index, char in enumerate(text):
+        if char.isalpha():
+            return text[:index] + char.upper() + text[index + 1 :]
+    return text
+
+
 def read_state() -> dict:
     if not STATE_FILE.exists():
         return {}
@@ -245,7 +252,7 @@ def stop_mode(state: dict) -> int:
     else:
         correction_seconds = round(time.monotonic() - correction_started, 3)
 
-    final_text = corrected_text or text
+    final_text = capitalize_first_letter(corrected_text or text)
 
     copy_to_clipboard(final_text)
     time.sleep(0.15)
