@@ -10,14 +10,14 @@ import tomllib
 from pathlib import Path
 
 
-BASE_DIR = Path.home() / "voice-toggle"
+BASE_DIR = Path(__file__).resolve().parent
 STATE_FILE = BASE_DIR / "state.json"
 RECORDING_FILE = BASE_DIR / "recording.wav"
 LOCK_FILE = BASE_DIR / "toggle.lock"
 CONFIG_FILE = BASE_DIR / "config.toml"
 PYTHON_BIN = BASE_DIR / ".venv" / "bin" / "python"
-START_SOUND = "/usr/share/sounds/Pop/stereo/notification/complete.oga"
-DONE_SOUND = "/usr/share/sounds/Pop/stereo/action/bell.oga"
+START_SOUND = "/usr/share/sounds/freedesktop/stereo/message.oga"
+DONE_SOUND = "/usr/share/sounds/freedesktop/stereo/complete.oga"
 PERF_LOG_FILE = BASE_DIR / "performance.log"
 DEFAULT_LANGUAGE_TOOL_LANG = "es"
 LANGUAGE_TOOL_LANG_MAP = {
@@ -38,11 +38,19 @@ def load_config() -> dict:
 
 CONFIG = load_config()
 MODEL_NAME = os.environ.get("VOICE_TOGGLE_MODEL", str(CONFIG.get("model", "small")))
-FORCED_LANGUAGE = os.environ.get("VOICE_TOGGLE_LANGUAGE", str(CONFIG.get("language", "auto")))
-ENABLE_LANGUAGE_TOOL = os.environ.get(
-    "VOICE_TOGGLE_ENABLE_LANGUAGETOOL",
-    "1" if bool(CONFIG.get("enable_languagetool", True)) else "0",
-) != "0"
+FORCED_LANGUAGE = os.environ.get(
+    "VOICE_TOGGLE_LANGUAGE", str(CONFIG.get("language", "auto"))
+)
+ENABLE_LANGUAGE_TOOL = (
+    os.environ.get(
+        "VOICE_TOGGLE_ENABLE_LANGUAGETOOL",
+        "1" if bool(CONFIG.get("enable_languagetool", True)) else "0",
+    )
+    != "0"
+)
+RECORD_DEVICE = os.environ.get(
+    "VOICE_TOGGLE_RECORD_DEVICE", str(CONFIG.get("record_device", "default"))
+)
 
 
 def ensure_dirs() -> None:
@@ -55,12 +63,26 @@ def run_quiet(cmd: list[str]) -> subprocess.CompletedProcess:
 
 def play_sound(path: str) -> None:
     if Path(path).exists() and shutil.which("paplay"):
-        subprocess.Popen(["paplay", path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.Popen(
+            ["paplay", path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
 
 
 def notify(title: str, body: str) -> None:
+    message = f"{title}: {body}".replace("\n", " ")
+    if shutil.which("hyprctl"):
+        subprocess.Popen(
+            ["hyprctl", "notify", "-1", "3500", "rgb(7cc7ff)", message],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return
     if shutil.which("notify-send"):
-        subprocess.Popen(["notify-send", title, body], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.Popen(
+            ["notify-send", title, body],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
 
 def preview_text(text: str, limit: int = 120) -> str:
@@ -101,27 +123,36 @@ def append_perf_log(event: dict) -> None:
 
 
 def process_alive(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-        return True
-    except OSError:
-        return False
+    return Path(f"/proc/{pid}").exists()
 
 
 def start_recording() -> int:
     if RECORDING_FILE.exists():
         RECORDING_FILE.unlink()
-    cmd = [
-        "arecord",
-        "-q",
-        "-f",
-        "S16_LE",
-        "-c",
-        "1",
-        "-r",
-        "16000",
-        str(RECORDING_FILE),
-    ]
+    if shutil.which("pw-cat"):
+        cmd = [
+            "pw-cat",
+            "--record",
+            "--format=s16",
+            "--channels=1",
+            "--rate=16000",
+            "--target=Blue Snowball",
+            str(RECORDING_FILE),
+        ]
+    else:
+        cmd = [
+            "arecord",
+            "-q",
+            "-D",
+            RECORD_DEVICE,
+            "-f",
+            "S16_LE",
+            "-c",
+            "1",
+            "-r",
+            "16000",
+            str(RECORDING_FILE),
+        ]
     proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return proc.pid
 
@@ -146,19 +177,27 @@ def stop_recording(pid: int) -> bool:
 
 def transcribe() -> tuple[str, str, float]:
     language_arg = "None" if FORCED_LANGUAGE == "auto" else repr(FORCED_LANGUAGE)
-    code = r'''
+    code = (
+        r'''
 import json
 from faster_whisper import WhisperModel
 
-model = WhisperModel("'''+ MODEL_NAME + r'''", device="cpu", compute_type="int8")
-segments, info = model.transcribe(r"'''+ str(RECORDING_FILE) + r'''", language='''+ language_arg + r''', beam_size=3, vad_filter=True)
+model = WhisperModel("'''
+        + MODEL_NAME
+        + r'''", device="cpu", compute_type="int8")
+segments, info = model.transcribe(r"'''
+        + str(RECORDING_FILE)
+        + r"""", language="""
+        + language_arg
+        + r""", beam_size=3, vad_filter=True)
 text = " ".join(segment.text.strip() for segment in segments).strip()
 print(json.dumps({
     "text": text,
     "language": info.language,
     "language_probability": info.language_probability,
 }))
-'''
+"""
+    )
     proc = subprocess.run(
         [str(PYTHON_BIN), "-c", code],
         check=False,
@@ -181,15 +220,21 @@ def normalize_language_for_tool(language: str) -> str:
 
 def correct_text(text: str, language: str) -> str:
     tool_language = normalize_language_for_tool(language)
-    code = r'''
+    code = (
+        r'''
 import language_tool_python
 
-tool = language_tool_python.LanguageTool("'''+ tool_language + r'''")
+tool = language_tool_python.LanguageTool("'''
+        + tool_language
+        + r'''")
 try:
-    print(tool.correct(r"""'''+ text.replace("\\", "\\\\").replace('"""', '\\"\\"\\"') + r'''"""))
+    print(tool.correct(r"""'''
+        + text.replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
+        + r'''"""))
 finally:
     tool.close()
 '''
+    )
     proc = subprocess.run(
         [str(PYTHON_BIN), "-c", code],
         check=False,
@@ -234,31 +279,39 @@ def stop_mode(state: dict) -> int:
     try:
         text, detected_language, language_probability = transcribe()
     except Exception as exc:
-        append_perf_log({
-            "timestamp": time.time(),
-            "model": MODEL_NAME,
-            "status": "transcription_error",
-            "transcribe_seconds": round(time.monotonic() - transcribe_started, 3),
-            "recording_seconds": round(time.time() - float(state.get("started_at", time.time())), 3),
-            "load1_before": round(load_before, 2),
-            "load1_after": round(os.getloadavg()[0], 2),
-        })
+        append_perf_log(
+            {
+                "timestamp": time.time(),
+                "model": MODEL_NAME,
+                "status": "transcription_error",
+                "transcribe_seconds": round(time.monotonic() - transcribe_started, 3),
+                "recording_seconds": round(
+                    time.time() - float(state.get("started_at", time.time())), 3
+                ),
+                "load1_before": round(load_before, 2),
+                "load1_after": round(os.getloadavg()[0], 2),
+            }
+        )
         play_sound(DONE_SOUND)
         notify("Voice Toggle", f"Fallo la transcripcion: {exc}")
         return 1
 
     if not text:
-        append_perf_log({
-            "timestamp": time.time(),
-            "model": MODEL_NAME,
-            "status": "empty_text",
-            "transcribe_seconds": round(time.monotonic() - transcribe_started, 3),
-            "recording_seconds": round(time.time() - float(state.get("started_at", time.time())), 3),
-            "load1_before": round(load_before, 2),
-            "load1_after": round(os.getloadavg()[0], 2),
-            "detected_language": detected_language,
-            "language_probability": round(language_probability, 4),
-        })
+        append_perf_log(
+            {
+                "timestamp": time.time(),
+                "model": MODEL_NAME,
+                "status": "empty_text",
+                "transcribe_seconds": round(time.monotonic() - transcribe_started, 3),
+                "recording_seconds": round(
+                    time.time() - float(state.get("started_at", time.time())), 3
+                ),
+                "load1_before": round(load_before, 2),
+                "load1_after": round(os.getloadavg()[0], 2),
+                "detected_language": detected_language,
+                "language_probability": round(language_probability, 4),
+            }
+        )
         play_sound(DONE_SOUND)
         notify("Voice Toggle", "No se detecto texto.")
         return 1
@@ -270,7 +323,10 @@ def stop_mode(state: dict) -> int:
         except Exception as exc:
             corrected_text = text
             correction_seconds = round(time.monotonic() - correction_started, 3)
-            notify("Voice Toggle", f"No se pudo corregir el texto. Uso transcripcion original: {exc}")
+            notify(
+                "Voice Toggle",
+                f"No se pudo corregir el texto. Uso transcripcion original: {exc}",
+            )
         else:
             correction_seconds = round(time.monotonic() - correction_started, 3)
     else:
@@ -285,32 +341,44 @@ def stop_mode(state: dict) -> int:
     play_sound(DONE_SOUND)
     text_preview = preview_text(final_text)
     transcribe_seconds = round(time.monotonic() - transcribe_started, 3)
-    recording_seconds = round(time.time() - float(state.get("started_at", time.time())), 3)
+    recording_seconds = round(
+        time.time() - float(state.get("started_at", time.time())), 3
+    )
     load_after = round(os.getloadavg()[0], 2)
 
-    append_perf_log({
-        "timestamp": time.time(),
-        "model": MODEL_NAME,
-        "status": "typed_ok" if typed_ok else "clipboard_only",
-        "transcribe_seconds": transcribe_seconds,
-        "correction_seconds": correction_seconds,
-        "recording_seconds": recording_seconds,
-        "text_length": len(final_text),
-        "corrected": final_text != text,
-        "detected_language": detected_language,
-        "language_probability": round(language_probability, 4),
-        "forced_language": FORCED_LANGUAGE,
-        "languagetool_enabled": ENABLE_LANGUAGE_TOOL,
-        "languagetool_language": normalize_language_for_tool(detected_language),
-        "load1_before": round(load_before, 2),
-        "load1_after": load_after,
-    })
+    append_perf_log(
+        {
+            "timestamp": time.time(),
+            "model": MODEL_NAME,
+            "status": "typed_ok" if typed_ok else "clipboard_only",
+            "transcribe_seconds": transcribe_seconds,
+            "correction_seconds": correction_seconds,
+            "recording_seconds": recording_seconds,
+            "text_length": len(final_text),
+            "corrected": final_text != text,
+            "detected_language": detected_language,
+            "language_probability": round(language_probability, 4),
+            "forced_language": FORCED_LANGUAGE,
+            "languagetool_enabled": ENABLE_LANGUAGE_TOOL,
+            "languagetool_language": normalize_language_for_tool(detected_language),
+            "raw_text": text,
+            "final_text": final_text,
+            "load1_before": round(load_before, 2),
+            "load1_after": load_after,
+        }
+    )
 
     if typed_ok:
-        notify("Voice Toggle", f"Texto pegado con exito [{detected_language}] ({transcribe_seconds}s): {text_preview}")
+        notify(
+            "Voice Toggle",
+            f"Texto pegado con exito [{detected_language}] ({transcribe_seconds}s): {text_preview}",
+        )
         return 0
 
-    notify("Voice Toggle", f"No se pudo pegar. Guardado en el portapapeles [{detected_language}] ({transcribe_seconds}s): {text_preview}")
+    notify(
+        "Voice Toggle",
+        f"No se pudo pegar. Guardado en el portapapeles [{detected_language}] ({transcribe_seconds}s): {text_preview}",
+    )
     return 1
 
 
@@ -319,6 +387,7 @@ def main() -> int:
     with open(LOCK_FILE, "w") as lock:
         try:
             import fcntl
+
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
             return 0

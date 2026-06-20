@@ -10,7 +10,11 @@ model = "small"
 # - "auto": autodeteccion
 # - "es": espanol
 # - "en": ingles
-language = "auto"
+language = "es"
 
 # Correccion posterior con LanguageTool.
 enable_languagetool = true
+
+# Dispositivo ALSA para grabacion.
+# En esta maquina conviene usar el micro Blue Snowball.
+record_device = "sysdefault:CARD=Snowball"

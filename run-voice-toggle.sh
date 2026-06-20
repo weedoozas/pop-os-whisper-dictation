@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-exec "/home/wezzzzz/voice-toggle/.venv/bin/python" "/home/wezzzzz/voice-toggle/voice_toggle.py"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+exec "$SCRIPT_DIR/.venv/bin/python" "$SCRIPT_DIR/voice_toggle.py"
